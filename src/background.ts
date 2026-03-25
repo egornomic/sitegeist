@@ -1,8 +1,13 @@
 import type { LockedSessionsMessage, LockResultMessage, SidepanelToBackgroundMessage } from "./utils/port.js";
 
+const WINDOW_ID_NONE = chrome.windows.WINDOW_ID_NONE;
+
 // Called when Sitegeist icon is clicked - opens sidepanel for current tab
 chrome.action.onClicked.addListener((tab: chrome.tabs.Tab) => {
 	const tabId = tab?.id;
+	if (tab.windowId !== undefined && tab.windowId !== WINDOW_ID_NONE) {
+		lastFocusedWindowId = tab.windowId;
+	}
 	if (tabId && chrome.sidePanel.open) {
 		chrome.sidePanel.open({ tabId });
 	}
@@ -33,11 +38,24 @@ const SESSION_LOCKS_KEY = "session_locks"; // sessionId -> windowId mapping
 // Synchronously readable cache of which sidepanels are open
 // Gets populated on startup and updated by port events
 let openSidepanels = new Set<number>();
+let lastFocusedWindowId: number | undefined;
 
 // Initialize cache from storage on startup
 chrome.storage.session.get(SIDEPANEL_OPEN_KEY, (data) => {
 	openSidepanels = new Set<number>((data[SIDEPANEL_OPEN_KEY] as number[]) || []);
 	console.log("[Background] Initialized openSidepanels cache:", Array.from(openSidepanels));
+});
+
+chrome.windows.getLastFocused((window) => {
+	if (window.id !== undefined && window.id !== WINDOW_ID_NONE) {
+		lastFocusedWindowId = window.id;
+	}
+});
+
+chrome.windows.onFocusChanged.addListener((windowId: number) => {
+	if (windowId !== WINDOW_ID_NONE) {
+		lastFocusedWindowId = windowId;
+	}
 });
 
 // Handle port connections from sidepanels
@@ -118,12 +136,11 @@ chrome.windows.onRemoved.addListener((windowId: number) => {
 // Handle keyboard shortcut - toggle sidepanel open/close
 chrome.commands.onCommand.addListener((command: string, sender?: chrome.tabs.Tab) => {
 	if (command === "toggle-sidepanel") {
-		if (!sender?.windowId) {
+		const windowId = sender?.windowId ?? lastFocusedWindowId;
+		if (windowId === undefined || windowId === WINDOW_ID_NONE) {
 			console.log("[Background] Cannot toggle sidepanel: sender windowId not available");
 			return;
 		}
-
-		const windowId = sender.windowId;
 
 		// Check synchronous cache (populated from storage on startup and updated by port events)
 		if (openSidepanels.has(windowId)) {

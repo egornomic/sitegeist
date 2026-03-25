@@ -104,6 +104,7 @@ const recordedCostMessages = new Set<AgentMessage>();
 
 // Cached auth type label for the current provider
 let authLabel = "";
+const SESSION_LOCKS_KEY = "session_locks";
 
 const DEFAULT_MODELS: Record<string, string> = {
 	"amazon-bedrock": "us.anthropic.claude-opus-4-6-v1",
@@ -322,8 +323,32 @@ const saveSession = async () => {
 
 const updateUrl = (sessionId: string) => {
 	const url = new URL(window.location.href);
+	url.searchParams.delete("new");
 	url.searchParams.set("session", sessionId);
 	window.history.replaceState({}, "", url);
+};
+
+const updateNewSessionUrl = () => {
+	const url = new URL(window.location.href);
+	url.searchParams.delete("session");
+	url.searchParams.set("new", "true");
+	window.history.replaceState({}, "", url);
+};
+
+const releaseSessionLock = async (sessionId: string | undefined) => {
+	if (!sessionId) return;
+
+	try {
+		const data = await chrome.storage.session.get(SESSION_LOCKS_KEY);
+		const sessionLocks: Record<string, number> = (data[SESSION_LOCKS_KEY] as Record<string, number>) || {};
+
+		if (sessionLocks[sessionId] === currentWindowId) {
+			delete sessionLocks[sessionId];
+			await chrome.storage.session.set({ [SESSION_LOCKS_KEY]: sessionLocks });
+		}
+	} catch (err) {
+		console.error("Failed to release session lock:", err);
+	}
 };
 
 const createAgent = async (initialState?: Partial<AgentState>, shouldSave = true) => {
@@ -588,18 +613,88 @@ const createAgent = async (initialState?: Partial<AgentState>, shouldSave = true
 	}
 };
 
-const loadSession = (sessionId: string) => {
-	// Navigation will disconnect port and auto-release locks
-	const url = new URL(window.location.href);
-	url.searchParams.set("session", sessionId);
-	window.location.href = url.toString();
+const loadSession = async (sessionId: string) => {
+	try {
+		if (!storage.sessions) return;
+		if (sessionId === currentSessionId) {
+			updateUrl(sessionId);
+			return;
+		}
+
+		const sessionData = await storage.sessions.loadSession(sessionId);
+		if (!sessionData) {
+			await newSession({ saveCurrentSession: false });
+			return;
+		}
+
+		if (currentSessionId) {
+			await saveSession();
+		}
+
+		const lockResponse = await port.sendMessage({
+			type: "acquireLock",
+			sessionId,
+			windowId: currentWindowId,
+		});
+
+		if (!lockResponse.success) {
+			console.warn("Failed to acquire lock for session", sessionId);
+			return;
+		}
+
+		if (agent?.state.isStreaming) {
+			agent.abort();
+		}
+
+		await releaseSessionLock(currentSessionId);
+
+		currentSessionId = sessionId;
+		currentTitle = (await storage.sessions.getMetadata(sessionId))?.title || "";
+		isEditingTitle = false;
+		updateUrl(sessionId);
+
+		await createAgent({
+			systemPrompt: SYSTEM_PROMPT,
+			model: sessionData.model,
+			thinkingLevel: sessionData.thinkingLevel,
+			messages: sessionData.messages,
+			tools: [],
+		});
+
+		renderApp();
+	} catch (err) {
+		console.error("Failed to load session:", err);
+	}
 };
 
-const newSession = () => {
-	// Navigation will disconnect port and auto-release locks
-	const url = new URL(window.location.href);
-	url.search = "?new=true";
-	window.location.href = url.toString();
+const newSession = async ({ saveCurrentSession = true }: { saveCurrentSession?: boolean } = {}) => {
+	try {
+		if (saveCurrentSession && currentSessionId) {
+			await saveSession();
+		}
+
+		if (agent?.state.isStreaming) {
+			agent.abort();
+		}
+
+		await releaseSessionLock(currentSessionId);
+
+		currentSessionId = undefined;
+		currentTitle = "";
+		isEditingTitle = false;
+		updateNewSessionUrl();
+
+		await createAgent();
+
+		if (agent) {
+			const welcomeMessage = createWelcomeMessage(tutorials);
+			agent.appendMessage(welcomeMessage);
+		}
+
+		renderApp();
+	} catch (err) {
+		console.error("Failed to start new session:", err);
+	}
 };
 
 // ============================================================================
@@ -618,12 +713,12 @@ const renderApp = () => {
 						onClick: () => {
 							SitegeistSessionListDialog.open(
 								(sessionId: string) => {
-									loadSession(sessionId);
+									void loadSession(sessionId);
 								},
 								(deletedSessionId: string) => {
 									// Only reload if the current session was deleted
 									if (deletedSessionId === currentSessionId) {
-										newSession();
+										void newSession({ saveCurrentSession: false });
 									}
 								},
 							);
@@ -634,7 +729,7 @@ const renderApp = () => {
 						variant: "ghost",
 						size: "sm",
 						children: icon(Plus, "sm"),
-						onClick: newSession,
+						onClick: () => void newSession(),
 						title: "New Session",
 					})}
 
@@ -1019,7 +1114,7 @@ async function initApp() {
 			return;
 		} else {
 			// Session doesn't exist, redirect to new session
-			newSession();
+			await newSession({ saveCurrentSession: false });
 			return;
 		}
 	}

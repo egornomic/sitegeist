@@ -21,11 +21,13 @@ export class SitegeistSessionListDialog extends DialogBase {
 	@state() private currentWindowId: number | undefined;
 	@state() private searchQuery = "";
 	@state() private showDeleteMenu = false;
+	@state() private confirmMessage = "";
 
 	private onSelectCallback?: (sessionId: string) => void;
 	private onDeleteCallback?: (sessionId: string) => void;
 	private deletedSessions = new Set<string>();
 	private closedViaSelection = false;
+	private confirmDeleteAction?: () => Promise<void>;
 
 	protected modalWidth = "min(600px, 90vw)";
 	protected modalHeight = "min(700px, 90vh)";
@@ -82,26 +84,25 @@ export class SitegeistSessionListDialog extends DialogBase {
 
 	private async handleDelete(sessionId: string, event: Event) {
 		event.stopPropagation();
+		this.openDeleteConfirmation(i18n("Delete this session?"), async () => {
+			try {
+				const storage = getAppStorage();
+				if (!storage.sessions) return;
 
-		if (!confirm(i18n("Delete this session?"))) {
-			return;
-		}
+				await storage.sessions.deleteSession(sessionId);
+				await this.loadSessionsAndLocks();
 
-		try {
-			const storage = getAppStorage();
-			if (!storage.sessions) return;
-
-			await storage.sessions.deleteSession(sessionId);
-			await this.loadSessionsAndLocks();
-
-			// Track deleted session
-			this.deletedSessions.add(sessionId);
-		} catch (err) {
-			console.error("Failed to delete session:", err);
-		}
+				// Track deleted session
+				this.deletedSessions.add(sessionId);
+			} catch (err) {
+				console.error("Failed to delete session:", err);
+				alert(i18n("Failed to delete sessions. Check console for details."));
+			}
+		});
 	}
 
 	override close() {
+		this.closeDeleteConfirmation();
 		super.close();
 
 		// Only notify about deleted sessions if dialog wasn't closed via selection
@@ -118,6 +119,23 @@ export class SitegeistSessionListDialog extends DialogBase {
 			this.onSelectCallback(sessionId);
 		}
 		this.close();
+	}
+
+	private openDeleteConfirmation(message: string, action: () => Promise<void>) {
+		this.showDeleteMenu = false;
+		this.confirmDeleteAction = action;
+		this.confirmMessage = message;
+	}
+
+	private closeDeleteConfirmation() {
+		this.confirmDeleteAction = undefined;
+		this.confirmMessage = "";
+	}
+
+	private async handleConfirmedDelete() {
+		const action = this.confirmDeleteAction;
+		this.closeDeleteConfirmation();
+		await action?.();
 	}
 
 	private formatDate(isoString: string): string {
@@ -223,29 +241,28 @@ export class SitegeistSessionListDialog extends DialogBase {
 			return;
 		}
 
-		const confirmed = confirm(
+		this.openDeleteConfirmation(
 			i18n(`Delete ALL {count} sessions? This cannot be undone!`).replace(
 				"{count}",
 				this.sessions.length.toString(),
 			),
+			async () => {
+				try {
+					const storage = getAppStorage();
+					if (!storage.sessions) return;
+
+					for (const session of this.sessions) {
+						await storage.sessions.deleteSession(session.id);
+						this.deletedSessions.add(session.id);
+					}
+
+					await this.loadSessionsAndLocks();
+				} catch (err) {
+					console.error("Failed to delete all sessions:", err);
+					alert(i18n("Failed to delete sessions. Check console for details."));
+				}
+			},
 		);
-
-		if (!confirmed) return;
-
-		try {
-			const storage = getAppStorage();
-			if (!storage.sessions) return;
-
-			for (const session of this.sessions) {
-				await storage.sessions.deleteSession(session.id);
-				this.deletedSessions.add(session.id);
-			}
-
-			await this.loadSessionsAndLocks();
-		} catch (err) {
-			console.error("Failed to delete all sessions:", err);
-			alert(i18n("Failed to delete sessions. Check console for details."));
-		}
 	}
 
 	private async handleDeleteOlderThan(days: number) {
@@ -383,7 +400,7 @@ export class SitegeistSessionListDialog extends DialogBase {
 
 		return html`
 			${DialogContent({
-				className: "h-full flex flex-col",
+				className: "h-full flex flex-col relative",
 				children: html`
 					${DialogHeader({
 						title: i18n("Sessions"),
@@ -573,6 +590,33 @@ export class SitegeistSessionListDialog extends DialogBase {
 										})
 						}
 					</div>
+
+					${
+						this.confirmMessage
+							? html`
+								<div class="absolute inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+									<div class="w-full max-w-sm rounded-lg border border-border bg-background p-4 shadow-xl">
+										<div class="text-sm font-semibold text-foreground">${i18n("Delete")}</div>
+										<p class="mt-2 text-sm text-muted-foreground">${this.confirmMessage}</p>
+										<div class="mt-4 flex justify-end gap-2">
+											<button
+												class="rounded-md border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-secondary"
+												@click=${() => this.closeDeleteConfirmation()}
+											>
+												Cancel
+											</button>
+											<button
+												class="rounded-md border border-destructive bg-destructive px-3 py-2 text-sm text-destructive-foreground transition-colors hover:opacity-90"
+												@click=${() => void this.handleConfirmedDelete()}
+											>
+												${i18n("Delete")}
+											</button>
+										</div>
+									</div>
+								</div>
+							`
+							: ""
+					}
 				`,
 			})}
 		`;
