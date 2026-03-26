@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Selected model now persists immediately when changed, including for already-saved sessions reopened after a browser restart
+
 ## [1.0.0] - 2026-03-15
 
 ### Added

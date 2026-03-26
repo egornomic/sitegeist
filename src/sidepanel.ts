@@ -132,6 +132,14 @@ const DEFAULT_MODELS: Record<string, string> = {
 	zai: "glm-4.6",
 };
 
+async function persistSelectedModel(model: Model<any>) {
+	await storage.settings.set("lastUsedModel", model);
+
+	if (currentSessionId) {
+		await saveSession();
+	}
+}
+
 async function selectDefaultModelForAvailableProvider() {
 	const providers = await getProvidersWithKeys();
 	if (providers.length === 0 || !agent) return;
@@ -143,7 +151,7 @@ async function selectDefaultModelForAvailableProvider() {
 			const model = getModel(provider as any, modelId);
 			if (model) {
 				agent.setModel(model);
-				await storage.settings.set("lastUsedModel", model);
+				await persistSelectedModel(model);
 				await updateAuthLabel();
 				renderApp();
 				return;
@@ -156,7 +164,7 @@ async function selectDefaultModelForAvailableProvider() {
 		const models = getModels(provider as any);
 		if (models.length > 0) {
 			agent.setModel(models[0]);
-			await storage.settings.set("lastUsedModel", models[0]);
+			await persistSelectedModel(models[0]);
 			await updateAuthLabel();
 			renderApp();
 			return;
@@ -500,8 +508,12 @@ const createAgent = async (initialState?: Partial<AgentState>, shouldSave = true
 				(model) => {
 					agent.setModel(model);
 					chatPanel.agentInterface?.requestUpdate();
-					updateAuthLabel().catch(() => {});
 					renderApp();
+
+					void persistSelectedModel(model).catch((err) => console.error("Failed to persist selected model:", err));
+					void updateAuthLabel()
+						.then(() => renderApp())
+						.catch(() => {});
 				},
 				providers,
 			);
