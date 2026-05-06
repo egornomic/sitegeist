@@ -144,6 +144,10 @@ function appendAgentMessage(message: AgentMessage) {
 	agent.state.messages = [...agent.state.messages, message];
 }
 
+function refreshAgentMessages(targetAgent: Agent) {
+	targetAgent.state.messages = targetAgent.state.messages.slice();
+}
+
 async function selectDefaultModelForAvailableProvider() {
 	const providers = await getProvidersWithKeys();
 	if (providers.length === 0 || !agent) return;
@@ -441,12 +445,26 @@ const createAgent = async (initialState?: Partial<AgentState>, shouldSave = true
 
 	await updateAuthLabel();
 
-	if (shouldSave) {
-		agentUnsubscribe = agent.subscribe((event: AgentEvent) => {
-			const messages = agent.state.messages;
+	const subscribedAgent = agent;
+	agentUnsubscribe = subscribedAgent.subscribe((event: AgentEvent) => {
+		if (event.type === "message_end") {
+			refreshAgentMessages(subscribedAgent);
+		}
 
+		if (event.type === "agent_end") {
+			void subscribedAgent.waitForIdle().then(() => {
+				if (agent !== subscribedAgent) return;
+				refreshAgentMessages(subscribedAgent);
+				chatPanel.agentInterface?.requestUpdate();
+				renderApp();
+			});
+		}
+
+		const messages = subscribedAgent.state.messages;
+
+		if (shouldSave) {
 			storage.settings
-				.set("lastUsedModel", agent.state.model)
+				.set("lastUsedModel", subscribedAgent.state.model)
 				.catch((err) => console.error("Failed to save lastUsedModel:", err));
 
 			// Update auth label when model changes
@@ -460,7 +478,11 @@ const createAgent = async (initialState?: Partial<AgentState>, shouldSave = true
 				if (!recordedCostMessages.has(event.message)) {
 					recordedCostMessages.add(event.message);
 					storage.costs
-						.recordCost(agent.state.model.provider, agent.state.model.id, event.message.usage.cost.total)
+						.recordCost(
+							subscribedAgent.state.model.provider,
+							subscribedAgent.state.model.id,
+							event.message.usage.cost.total,
+						)
 						.catch((err) => console.error("Failed to record cost:", err));
 				}
 			}
@@ -489,10 +511,10 @@ const createAgent = async (initialState?: Partial<AgentState>, shouldSave = true
 			if (currentSessionId) {
 				saveSession();
 			}
+		}
 
-			renderApp();
-		});
-	}
+		renderApp();
+	});
 
 	await chatPanel.setAgent(agent, {
 		sandboxUrlProvider: () => {
