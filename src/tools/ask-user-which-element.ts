@@ -8,10 +8,10 @@ import {
 	type ToolRenderer,
 	type ToolRenderResult,
 } from "@mariozechner/pi-web-ui";
-import { type Static, Type } from "@sinclair/typebox";
 import { html } from "lit";
 import { createRef, ref } from "lit/directives/ref.js";
 import { Loader2, MousePointer2 } from "lucide";
+import { type Static, Type } from "typebox";
 import { ASK_USER_WHICH_ELEMENT_TOOL_DESCRIPTION } from "../prompts/prompts.js";
 import "../utils/i18n-extension.js";
 
@@ -529,9 +529,11 @@ export class AskUserWhichElementTool implements AgentTool<typeof selectElementSc
 
 	async execute(
 		_toolCallId: string,
-		args: SelectElementParams,
+		params: unknown,
 		signal?: AbortSignal,
 	): Promise<{ content: Array<{ type: "text"; text: string }>; details: SelectElementResult }> {
+		const args = params as SelectElementParams;
+
 		try {
 			// Check if already aborted
 			if (signal?.aborted) {

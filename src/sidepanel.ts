@@ -122,7 +122,7 @@ const DEFAULT_MODELS: Record<string, string> = {
 	minimax: "MiniMax-M2.1",
 	"minimax-cn": "MiniMax-M2.1",
 	mistral: "devstral-medium-latest",
-	openai: "gpt-4o-mini",
+	openai: "gpt-5.5",
 	"openai-codex": "gpt-5.1-codex-mini",
 	opencode: "claude-opus-4-6",
 	"opencode-go": "kimi-k2.5",
@@ -140,6 +140,10 @@ async function persistSelectedModel(model: Model<any>) {
 	}
 }
 
+function appendAgentMessage(message: AgentMessage) {
+	agent.state.messages = [...agent.state.messages, message];
+}
+
 async function selectDefaultModelForAvailableProvider() {
 	const providers = await getProvidersWithKeys();
 	if (providers.length === 0 || !agent) return;
@@ -150,7 +154,7 @@ async function selectDefaultModelForAvailableProvider() {
 		if (modelId) {
 			const model = getModel(provider as any, modelId);
 			if (model) {
-				agent.setModel(model);
+				agent.state.model = model;
 				await persistSelectedModel(model);
 				await updateAuthLabel();
 				renderApp();
@@ -163,7 +167,7 @@ async function selectDefaultModelForAvailableProvider() {
 	for (const provider of providers) {
 		const models = getModels(provider as any);
 		if (models.length > 0) {
-			agent.setModel(models[0]);
+			agent.state.model = models[0];
 			await persistSelectedModel(models[0]);
 			await updateAuthLabel();
 			renderApp();
@@ -506,7 +510,7 @@ const createAgent = async (initialState?: Partial<AgentState>, shouldSave = true
 			ModelSelector.open(
 				agent.state.model,
 				(model) => {
-					agent.setModel(model);
+					agent.state.model = model;
 					chatPanel.agentInterface?.requestUpdate();
 					renderApp();
 
@@ -545,7 +549,7 @@ const createAgent = async (initialState?: Partial<AgentState>, shouldSave = true
 			// Only add if URL changed
 			if (!lastUrl || lastUrl !== tab.url) {
 				const navMessage = await createNavigationMessage(tab.url, tab.title || "Untitled", tab.favIconUrl, tab.id);
-				agent.appendMessage(navMessage);
+				appendAgentMessage(navMessage);
 			}
 		},
 		onCostClick: () => {
@@ -700,7 +704,7 @@ const newSession = async ({ saveCurrentSession = true }: { saveCurrentSession?: 
 
 		if (agent) {
 			const welcomeMessage = createWelcomeMessage(tutorials);
-			agent.appendMessage(welcomeMessage);
+			appendAgentMessage(welcomeMessage);
 		}
 
 		renderApp();
@@ -1104,7 +1108,7 @@ async function initApp() {
 				await createAgent();
 				if (agent) {
 					const welcomeMessage = createWelcomeMessage(tutorials);
-					agent.appendMessage(welcomeMessage);
+					appendAgentMessage(welcomeMessage);
 				}
 				renderApp();
 				return;
@@ -1137,7 +1141,7 @@ async function initApp() {
 	// Add welcome message for new sessions
 	if (agent) {
 		const welcomeMessage = createWelcomeMessage(tutorials);
-		agent.appendMessage(welcomeMessage);
+		appendAgentMessage(welcomeMessage);
 	}
 
 	renderApp();

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- OpenAI GPT-5.5 and GPT-5.5 Pro model options
+
+### Changed
+
+- Default OpenAI API model changed to GPT-5.5
+- Linked Pi packages updated to 0.73.0
+
 ### Fixed
 
 - Selected model now persists immediately when changed, including for already-saved sessions reopened after a browser restart

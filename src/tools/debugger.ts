@@ -7,10 +7,10 @@ import {
 	type ToolRenderer,
 	type ToolRenderResult,
 } from "@mariozechner/pi-web-ui";
-import { type Static, Type } from "@sinclair/typebox";
 import { html } from "lit";
 import { createRef, ref } from "lit/directives/ref.js";
 import { Bug } from "lucide";
+import { type Static, Type } from "typebox";
 
 // ============================================================================
 // TYPES
@@ -66,9 +66,11 @@ CRITICAL: Use browserjs() and repl tool for DOM manipulation. Use this ONLY for 
 
 	async execute(
 		_toolCallId: string,
-		args: DebuggerParams,
+		params: unknown,
 		signal?: AbortSignal,
 	): Promise<{ content: Array<{ type: "text"; text: string }>; details: DebuggerResult }> {
+		const args = params as DebuggerParams;
+
 		if (signal?.aborted) {
 			throw new Error("Debugger command aborted");
 		}
