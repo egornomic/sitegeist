@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-05-08
+
 ### Changed
 
 - Update and release links now point to the fork's GitHub releases
