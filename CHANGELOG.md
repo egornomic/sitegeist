@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-08
+
 ### Added
 
 - Dia-friendly side panel session handling and keyboard shortcut support
