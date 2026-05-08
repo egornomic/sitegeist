@@ -11,6 +11,10 @@
 
 - Static website source and deployment scripts
 
+### Fixed
+
+- Image attachments now reach the selected model as image input instead of being dropped before the request
+
 ## [1.1.0] - 2026-05-08
 
 ### Added
