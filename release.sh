@@ -53,12 +53,14 @@ echo "Running checks..."
 
 # Commit, tag, push
 git add "$MANIFEST" CHANGELOG.md
-git commit -m "Release v$NEW_VERSION"
+git commit -m "chore: release v$NEW_VERSION"
 git tag "$TAG"
 git push origin main
 git push origin "$TAG"
 
+REPO_URL=$(git remote get-url origin | sed -E 's#^git@github.com:#https://github.com/#; s#\.git$##')
+
 echo ""
 echo "Released v$NEW_VERSION"
 echo "GitHub Actions will build and create the release at:"
-echo "  https://github.com/badlogic/sitegeist/releases/tag/$TAG"
+echo "  $REPO_URL/releases/tag/$TAG"

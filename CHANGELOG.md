@@ -4,15 +4,19 @@
 
 ### Added
 
+- Dia-friendly side panel session handling and keyboard shortcut support
 - OpenAI GPT-5.5 and GPT-5.5 Pro model options
 
 ### Changed
 
+- OAuth subscription login now uses local extension CORS rules instead of an external proxy
 - Default OpenAI API model changed to GPT-5.5
 - Linked Pi packages updated to 0.73.0
+- Site copy now reflects the free AGPL-3.0 open-source distribution
 
 ### Fixed
 
+- Side panel final answers now refresh after streaming completes
 - Selected model now persists immediately when changed, including for already-saved sessions reopened after a browser restart
 
 ## [1.0.0] - 2026-03-15
