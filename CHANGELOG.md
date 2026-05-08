@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Update and release links now point to the fork's GitHub releases
+- GitHub release notes now include the corresponding source link for each tag
+
+### Removed
+
+- Static website source and deployment scripts
+
 ## [1.1.0] - 2026-05-08
 
 ### Added

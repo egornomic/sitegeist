@@ -10,7 +10,7 @@ Bring your own API key or log in with an existing subscription (Anthropic Claude
 
 ## Download & Install
 
-Visit [sitegeist.ai](https://sitegeist.ai) for download links and step-by-step installation instructions.
+Download the latest `sitegeist.zip` from [GitHub Releases](https://github.com/egornomic/sitegeist/releases/latest), unzip it, and load the unpacked folder from the Chrome/Edge extensions page with Developer mode enabled.
 
 Requires Chrome 141+ or Edge equivalent.
 
@@ -35,7 +35,7 @@ npm install
 
 `npm install` sets up the Husky pre-commit hook automatically.
 
-Start all dev watchers (mini-lit, pi-mono, sitegeist extension, marketing site):
+Start all dev watchers (mini-lit, pi-mono, sitegeist extension):
 
 ```bash
 ./dev.sh
@@ -43,7 +43,7 @@ Start all dev watchers (mini-lit, pi-mono, sitegeist extension, marketing site):
 
 Changes in `../mini-lit` or `../pi-mono` are rebuilt automatically and picked up by the sitegeist watcher.
 
-To run only the extension watcher without dependencies or the marketing site:
+To run only the extension watcher without dependencies:
 
 ```bash
 npm run dev
@@ -65,7 +65,7 @@ The extension hot-reloads when the dev watcher rebuilds.
 
 On first launch, Sitegeist prompts you to connect at least one AI provider. You can log in with a subscription or enter an API key.
 
-Some subscription logins require the CORS proxy (configurable in Settings > Proxy). The default proxy is `https://proxy.mariozechner.at/proxy`.
+OAuth subscription logins use local extension CORS rules. Proxy settings remain available for document downloads or providers that require a custom proxy.
 
 ## Checks
 
@@ -73,7 +73,7 @@ Some subscription logins require the CORS proxy (configurable in Settings > Prox
 ./check.sh
 ```
 
-Runs formatting, linting, and type checking for the extension and the `site/` subproject.
+Runs formatting, linting, and type checking for the extension.
 
 The Husky pre-commit hook runs the same checks before each commit.
 
@@ -85,14 +85,6 @@ npm run build
 
 The unpacked extension is written to `dist-chrome/`.
 
-## Updating the website
-
-```bash
-cd site && ./run.sh deploy
-```
-
-Builds the static site and uploads it to `sitegeist.ai`. Requires SSH access to `slayer.marioslab.io`.
-
 ## Releasing
 
 ```bash
@@ -101,7 +93,7 @@ Builds the static site and uploads it to `sitegeist.ai`. Requires SSH access to 
 ./release.sh major   # 1.0.0 -> 2.0.0
 ```
 
-Bumps the version in `static/manifest.chrome.json`, commits, tags, and pushes. GitHub Actions builds the extension and creates a release at [github.com/badlogic/sitegeist/releases](https://github.com/badlogic/sitegeist/releases).
+Bumps the version in `static/manifest.chrome.json`, commits, tags, and pushes. GitHub Actions builds the extension and creates a release at [github.com/egornomic/sitegeist/releases](https://github.com/egornomic/sitegeist/releases). Release notes include a link to the corresponding source for the tag.
 
 ## License
 

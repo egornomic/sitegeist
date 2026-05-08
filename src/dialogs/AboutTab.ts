@@ -2,6 +2,13 @@ import { i18n } from "@mariozechner/mini-lit/dist/i18n.js";
 import { SettingsTab } from "@mariozechner/pi-web-ui";
 import { html, type TemplateResult } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import {
+	fetchLatestReleaseVersion,
+	GITHUB_LICENSE_URL,
+	GITHUB_RELEASES_URL,
+	GITHUB_SOURCE_URL,
+	isNewerVersion,
+} from "../utils/releases.js";
 import "../utils/i18n-extension.js";
 
 @customElement("about-tab")
@@ -22,14 +29,11 @@ export class AboutTab extends SettingsTab {
 
 	private async checkForUpdates() {
 		try {
-			const response = await fetch("https://sitegeist.ai/uploads/version.json", {
-				cache: "no-cache",
-			});
-			const data = await response.json();
 			const currentVersion = chrome.runtime.getManifest().version;
+			const latestVersion = await fetchLatestReleaseVersion();
 
-			this.latestVersion = data.version;
-			this.updateAvailable = data.version !== currentVersion;
+			this.latestVersion = latestVersion;
+			this.updateAvailable = isNewerVersion(latestVersion, currentVersion);
 			this.checking = false;
 		} catch (err) {
 			console.warn("[AboutTab] Failed to check for updates:", err);
@@ -39,7 +43,7 @@ export class AboutTab extends SettingsTab {
 	}
 
 	private openUpdatePage() {
-		window.open("https://sitegeist.ai/install.html#updating", "_blank");
+		window.open(GITHUB_RELEASES_URL, "_blank");
 	}
 
 	render(): TemplateResult {
@@ -99,11 +103,11 @@ export class AboutTab extends SettingsTab {
 
 				<div class="pt-4 space-y-2">
 					<div class="text-xs text-muted-foreground space-x-3">
-						<a href="https://sitegeist.ai" target="_blank" class="text-primary hover:underline">${i18n("Website")}</a>
+						<a href=${GITHUB_SOURCE_URL} target="_blank" class="text-primary hover:underline">${i18n("Source")}</a>
 						<span>·</span>
-						<a href="https://sitegeist.ai/imprint" target="_blank" class="text-primary hover:underline">${i18n("Imprint")}</a>
+						<a href=${GITHUB_RELEASES_URL} target="_blank" class="text-primary hover:underline">${i18n("Releases")}</a>
 						<span>·</span>
-						<a href="https://sitegeist.ai/privacy" target="_blank" class="text-primary hover:underline">${i18n("Privacy")}</a>
+						<a href=${GITHUB_LICENSE_URL} target="_blank" class="text-primary hover:underline">${i18n("License")}</a>
 					</div>
 				</div>
 			</div>

@@ -81,9 +81,9 @@ declare module "@mariozechner/mini-lit" {
 		About: string;
 		"AI-powered browser extension for web navigation and interaction": string;
 		"Version:": string;
-		Website: string;
-		Imprint: string;
-		Privacy: string;
+		Source: string;
+		Releases: string;
+		License: string;
 		"Checking for updates...": string;
 		"Update Available": string;
 		"A new version ({version}) is available": string;
@@ -172,9 +172,9 @@ const sitegeistTranslations = {
 		"AI-powered browser extension for web navigation and interaction":
 			"AI-powered browser extension for web navigation and interaction",
 		"Version:": "Version:",
-		Website: "Website",
-		Imprint: "Imprint",
-		Privacy: "Privacy",
+		Source: "Source",
+		Releases: "Releases",
+		License: "License",
 		"Checking for updates...": "Checking for updates...",
 		"Update Available": "Update Available",
 		"A new version ({version}) is available": "A new version ({version}) is available",
@@ -263,9 +263,9 @@ const sitegeistTranslations = {
 		"AI-powered browser extension for web navigation and interaction":
 			"KI-gestützte Browser-Erweiterung für Webnavigation und -interaktion",
 		"Version:": "Version:",
-		Website: "Webseite",
-		Imprint: "Impressum",
-		Privacy: "Datenschutz",
+		Source: "Quellcode",
+		Releases: "Versionen",
+		License: "Lizenz",
 		"Checking for updates...": "Suche nach Updates...",
 		"Update Available": "Update verfügbar",
 		"A new version ({version}) is available": "Eine neue Version ({version}) ist verfügbar",
