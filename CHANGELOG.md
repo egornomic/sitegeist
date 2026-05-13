@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-05-13
+
 ### Added
 
 - Custom slash commands for expanding saved prompts from the chat box
