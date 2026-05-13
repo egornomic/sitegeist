@@ -30,6 +30,7 @@ import { CostsTab } from "./dialogs/CostsTab.js";
 import { SessionCostDialog } from "./dialogs/SessionCostDialog.js";
 import { SitegeistSessionListDialog } from "./dialogs/SessionListDialog.js";
 import { SkillsTab } from "./dialogs/SkillsTab.js";
+import { SlashCommandsTab } from "./dialogs/SlashCommandsTab.js";
 import { UpdateNotificationDialog } from "./dialogs/UpdateNotificationDialog.js";
 import { UserScriptsPermissionDialog } from "./dialogs/UserScriptsPermissionDialog.js";
 import { WelcomeSetupDialog } from "./dialogs/WelcomeSetupDialog.js";
@@ -43,6 +44,7 @@ import { registerUserMessageRenderer } from "./messages/UserMessageRenderer.js";
 import { createWelcomeMessage, registerWelcomeRenderer } from "./messages/WelcomeMessage.js";
 import { isOAuthCredentials, resolveApiKey } from "./oauth/index.js";
 import { SYSTEM_PROMPT } from "./prompts/prompts.js";
+import { SLASH_COMMANDS_SETTINGS_KEY, type SlashCommand, sanitizeSlashCommands } from "./slash-commands.js";
 import { SitegeistAppStorage } from "./storage/app-storage.js";
 import { DebuggerTool } from "./tools/debugger.js";
 import { ExtractImageTool, registerExtractImageRenderer } from "./tools/extract-image.js";
@@ -56,6 +58,7 @@ import "./utils/i18n-extension.js";
 import "./utils/live-reload.js";
 import { tutorials } from "./tutorials.js";
 import { fetchLatestReleaseVersion, isNewerVersion } from "./utils/releases.js";
+import { SlashCommandController } from "./utils/slash-command-controller.js";
 
 // Register custom message renderers
 registerNavigationRenderer();
@@ -94,6 +97,8 @@ let agent: Agent;
 let chatPanel: ChatPanel;
 let agentUnsubscribe: (() => void) | undefined;
 let currentWindowId: number;
+let slashCommands: SlashCommand[] = [];
+let slashCommandController: SlashCommandController | undefined;
 
 // Track which skills we've shown in full (skillName -> lastUpdated timestamp)
 // Reset when a new session/agent is created
@@ -198,11 +203,38 @@ async function hasAnyApiKey(): Promise<boolean> {
 
 function openApiKeysDialog(): Promise<void> {
 	return new Promise((resolve) => {
-		SettingsDialog.open(
-			[new ApiKeysOAuthTab(), new CostsTab(), new SkillsTab(), new ProxyTab(), new AboutTab()],
-			resolve,
-		);
+		SettingsDialog.open(createSettingsTabs(), resolve);
 	});
+}
+
+async function loadSlashCommands() {
+	slashCommands = sanitizeSlashCommands(await storage.settings.get<SlashCommand[]>(SLASH_COMMANDS_SETTINGS_KEY));
+}
+
+function handleSlashCommandsChanged(commands: SlashCommand[]) {
+	slashCommands = commands;
+	attachSlashCommandController();
+}
+
+function createSettingsTabs() {
+	return [
+		new ApiKeysOAuthTab(),
+		new CostsTab(),
+		new SkillsTab(),
+		new SlashCommandsTab(handleSlashCommandsChanged),
+		new ProxyTab(),
+		new AboutTab(),
+	];
+}
+
+function attachSlashCommandController() {
+	const agentInterface = chatPanel?.agentInterface;
+	slashCommandController?.dispose();
+	slashCommandController = undefined;
+	if (agentInterface) {
+		slashCommandController = new SlashCommandController(agentInterface, slashCommands);
+		return;
+	}
 }
 
 async function updateAuthLabel() {
@@ -629,6 +661,8 @@ const createAgent = async (initialState?: Partial<AgentState>, shouldSave = true
 		},
 	});
 
+	attachSlashCommandController();
+
 	// Register custom message renderers after agentInterface is available
 	if (chatPanel.agentInterface) {
 		registerWelcomeRenderer(agent, chatPanel.agentInterface);
@@ -834,14 +868,7 @@ const renderApp = () => {
 						variant: "ghost",
 						size: "sm",
 						children: icon(Settings, "sm"),
-						onClick: () =>
-							SettingsDialog.open([
-								new ApiKeysOAuthTab(),
-								new CostsTab(),
-								new SkillsTab(),
-								new ProxyTab(),
-								new AboutTab(),
-							]),
+						onClick: () => SettingsDialog.open(createSettingsTabs()),
 						title: "Settings",
 					})}
 				</div>
@@ -1030,6 +1057,7 @@ async function initApp() {
 	const stored = await chrome.storage.local.get("showJsonMode");
 	const showJsonModeEnabled = (stored.showJsonMode as boolean) || false;
 	setShowJsonMode(showJsonModeEnabled);
+	await loadSlashCommands();
 
 	// Get current window ID for filtering tab events
 	const currentWindow = await chrome.windows.getCurrent();
